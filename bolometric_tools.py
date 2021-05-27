@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit 
 
 import extinction
-
+import george
 
 ###########BLACK BODY FIT#################
 ####My bolometric luminosity
@@ -109,3 +109,62 @@ def fit_blackbody_curvefit(photometry, distance = 10*u.Mpc.to(u.cm).value, EB_V 
             bb_err  += [[np.nan,np.nan]]
     
     return np.array(bb_fits), np.array(bb_err)
+
+
+###########GP Tool to interpolate lightcurves#################
+def george_lightcurve(mjd_obs, flux_obs, flux_err, x_pred = None, kernel_name = 'ExpSquared', 
+                      timescale = 100, mean = 'zero', plot = True):
+    """
+    A function to interpolate observed light curve onto some common time grid "x_pred"
+    mjd_obs:    array of the observed mjd
+    flux_obs:   array of observed flux. Note that this can be mag, but it works best in the flux space
+    flux_err:   array of flux uncertainties 
+    x_pred:     This is the array of some common mjd grid to interpolate onto
+    kernel_name: Either ExpSquared (george.kernels.ExpSquaredKernel) 
+                    or Matern (george.kernels.Matern32Kernel)
+    timescale:  length scale of the interpolation
+    mean:       mean of the kernel. This should be "zero" for well-sampled light curve
+                    and "mean" if there's only a few epochs (rise and fall not covered)
+    plot:       whether to produce plots
+    """
+    x = mjd_obs
+    y = flux_obs
+    yerr = flux_err
+
+    #Define Kernel
+    if kernel_name == 'ExpSquared':
+        if mean == 'zero':
+            kernel = np.var(y) * george.kernels.ExpSquaredKernel(timescale)
+        elif mean == 'mean':
+            kernel = np.var(y) * george.kernels.ExpSquaredKernel(timescale) + np.mean(y)
+    elif kernel_name == 'Matern':
+        if mean == 'zero':
+            kernel = np.var(y) * george.kernels.Matern32Kernel(timescale)
+        elif mean == 'mean':
+            kernel = np.var(y) * george.kernels.Matern32Kernel(timescale) + np.mean(y)
+    gp = george.GP(kernel)
+    #Compute
+    gp.compute(x, yerr)
+
+    #Compute prediction
+    if x_pred is None:
+        x_pred = np.linspace(np.min(x), np.max(x), 500)
+    pred, pred_var = gp.predict(y, x_pred, return_var=True)
+
+    #Plot
+    if plot:
+        plt.fill_between(x_pred, pred - np.sqrt(pred_var), pred + np.sqrt(pred_var),
+                        color="k", alpha=0.2)
+        plt.plot(x_pred, pred, "k", lw=1.5, alpha=0.5)
+        plt.errorbar(x, y, yerr=yerr, fmt=".g", capsize=0)
+        # plt.plot(x_pred, np.sin(x_pred), "--g")
+        # plt.xlim(0, 10)
+        # plt.ylim(-1.45, 1.45)
+        plt.xlabel("MJD")
+        plt.ylabel("flux")
+
+    # plt.ylim([20,16])
+    
+    #Extrapolated flag: True for x_pred < min(mjd_obs) or x_pred > max(mjd_obs)
+    extrapolated = np.logical_or(x_pred < np.min(mjd_obs)-1, x_pred > np.max(mjd_obs)+3)
+    return x_pred, pred, pred_var, gp, extrapolated
