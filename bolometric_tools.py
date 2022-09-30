@@ -35,12 +35,22 @@ stefan_boltzmann = const.sigma_sb.to(u.erg/u.s/u.K**4/u.cm**2).value
 def B_nu(nu, T):
     return 2*h*nu**3/c**2/(np.exp(h*nu/kB/T) - 1)
 
+def B_lam(wl, T):
+    return 2*h*c**2/wl**5/(np.exp(h*c/wl/kB/T) - 1)
+
 #Black body flux at a distance dist, fit this function to get T and r
 def BB_flux(wl, T, r, dist):
     """Fit blackbody curve to data"""
     nu = c/(wl/1e8) ###########Angstrom
     flux = np.pi*B_nu(nu, T)*(r**2/dist**2)
     return 1e23*flux #Jansky here
+
+#Black body flux at a distance dist, fit this function to get T and r
+def BB_flux_lam(wl, T, r, dist):
+    """Fit blackbody curve to data"""
+    wl = (wl*u.angstrom).to(u.cm).value
+    flux = np.pi*B_lam(wl, T)*(r**2/dist**2)
+    return flux #erg/s/cm^2/cm here
 
 #Actually fit the photometry
 def fit_blackbody_curvefit(photometry, distance = 10*u.Mpc.to(u.cm), z = 0, 
@@ -125,6 +135,7 @@ def fit_blackbody_curvefit(photometry, distance = 10*u.Mpc.to(u.cm), z = 0,
             dT_bb = np.sqrt(bb_conv[0,0])
             dr_bb = np.sqrt(bb_conv[1,1])
             ##################Compute Luminosity########################
+            lam = np.linspace(100000, 10, 10000)*1e-8 #hopefully not too fine, cm
             if suppress_uv == False:
                 #no UV suppression, L is just the stefan boltzmann Luminosity
                 L = 4 * np.pi * r_bb**2 * stefan_boltzmann * T_bb**4
@@ -133,7 +144,6 @@ def fit_blackbody_curvefit(photometry, distance = 10*u.Mpc.to(u.cm), z = 0,
                 dL = 4*np.pi*stefan_boltzmann* np.sqrt((2*r_bb*T_bb**4 *dr_bb)**2 +\
                                                 (4*r_bb**2*T_bb**3 *dT_bb)**2)
             else: #If UV is suppressed, we have to actually integrate
-                lam = np.linspace(100000, 10, 10000)*1e-8 #hopefully not too fine, cm
                 nu = c/lam #Hz
                 F_nu = np.pi*B_nu(nu, T_bb) #flux at the source
                 F_up = np.pi*B_nu(nu, T_bb+dT_bb)
@@ -149,8 +159,12 @@ def fit_blackbody_curvefit(photometry, distance = 10*u.Mpc.to(u.cm), z = 0,
             if return_uv_ir:
                 lam_UV = np.linspace(uv_cut, 10, 10000)*1e-8
                 lam_IR = np.linspace(100000, ir_cut, 10000)*1e-8
-                uv_suppression_factor = (lam*1e8/cutoff_wavelength)**(suppression_index)
-                uv_suppression_factor[lam*1e8 >= cutoff_wavelength] = 1
+                if suppress_uv:
+                    uv_suppression_factor = (lam*1e8/cutoff_wavelength)**(suppression_index)
+                    uv_suppression_factor[lam*1e8 >= cutoff_wavelength] = 1
+                else:
+                    uv_suppression_factor = (lam*1e8/cutoff_wavelength)**(suppression_index)
+                    uv_suppression_factor[lam*1e8 >= 0] = 1                   
                 nuUV = c/lam_UV #Hz
                 nuIR = c/lam_IR #Hz
                 F_nu_UV = np.pi*B_nu(nuUV, T_bb) #flux at the source
