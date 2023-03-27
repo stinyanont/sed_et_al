@@ -144,7 +144,8 @@ def dust_flux_nu(nu, T, mass, comp, a, distance, source = 'Draine'):
     if source == 'Dwek':
         kap = kappa(wl, comp, a)
     elif source == 'Draine':
-        kap = draine_kappa(wl, comp)    mass_cgs = mass*1.99e33 #g/solar mass
+        kap = draine_kappa(wl, comp)    
+        mass_cgs = mass*1.99e33 #g/solar mass
     
     return mass_cgs*B_nu(nu,T)*kap/distance**2 #cgs
     
