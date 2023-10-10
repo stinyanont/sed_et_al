@@ -193,18 +193,18 @@ def SED_to_fit(wl, Ts, Ms, f_Si, distance):
     distance is in cm. 
     """
     dust_models = []
-    if len(Ts) == len(Ms) == len(f_Sis):
+    if len(Ts) == len(Ms) == len(f_Si):
         for ind in range(len(Ts)):
             T = Ts[ind]
             M = Ms[ind]
-            f_Si = f_Sis[ind]
+            f_Si = f_Si[ind]
             Si_mass = f_Si*M
             C_mass =  (1-f_Si)*M
             Si_dust = dust_flux(wl, T, Si_mass, 'Si',0.1, distance = distance)
             C_dust = dust_flux(wl, T, C_mass, 'C',0.1, distance  = distance)
             dust_models += [Si_dust + C_dust]
     else:
-        print("Length of Ts, Ms, and f_Sis must be equal")
+        print("Length of Ts, Ms, and f_Si must be equal")
     dust_models = np.array(dust_models)
     total_dust_SED = np.sum(dust_models, axis = 0)
     return 1e26*total_dust_SED 
