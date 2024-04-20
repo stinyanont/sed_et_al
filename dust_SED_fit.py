@@ -1,4 +1,5 @@
 from astropy.io import ascii as asci
+import astropy.units as u
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
@@ -208,5 +209,66 @@ def SED_to_fit(wl, Ts, Ms, f_Sis, distance):
     dust_models = np.array(dust_models)
     total_dust_SED = np.sum(dust_models, axis = 0)
     return 1e26*total_dust_SED 
+
+
+###############FIT Taking optical depth into account. Based on Shahbandeh+2023, but using emcee#
+
+def p_esc(tau):
+    "eq 3 in the paper"
+    p = 3/(4*tau) * (1-1/(2*tau**2)+ (1/tau + 1/(2*tau**2))*np.exp(-2*tau) )
+    for i in range(len(p)):
+        if np.isnan(p[i]): 
+            p[i] = 0
+    return p
+
+def tau(wl, t, Mdust_tot, v_ej, comp = 'C'):
+    """
+    The optical depth at different wavelength as a fuction of time,
+    assuming homologous expansion.
+
+    ALL INPUT MUST BE WITH ASTROPY UNIT
+    """
+    opt_depth = 3/4 * (Mdust_tot/(np.pi * v_ej**2)) * draine_kappa(wl, comp)*(u.cm**2/u.g) * t**(-2)
+    return opt_depth.to(1).value
+
+def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance):
+    """Deal with multi component fit
+    Ts, Ms, and f_Si are arrays of same length specify different 
+    SED components.
+    distance is in cm. 
+    T in K
+    M in solar mass
+    """
+    dust_models = []
+    if len(Ts) == len(Ms) == len(f_Sis):
+        for ind in range(len(Ts)):
+            T = Ts[ind]
+            M = Ms[ind]
+            f_Si = f_Sis[ind]
+            Si_mass = f_Si*M
+            C_mass =  (1-f_Si)*M
+            #Compute the optical depth
+            print(Si_mass, C_mass)
+            tau_Si = tau(wl*u.micron, epoch*u.day, Si_mass*u.Msun, v_ej*u.km/u.s, comp = 'Si')
+            tau_C =  tau(wl*u.micron, epoch*u.day, C_mass*u.Msun , v_ej*u.km/u.s, comp = 'C')
+            # print(tau_Si, tau_C)
+            #Compute the escape fraction
+            p_esc_Si = p_esc(tau_Si)
+            p_esc_C  = p_esc(tau_C)
+            print(p_esc_Si, p_esc_C)
+            #Now compute the observed flux
+            Si_dust = dust_flux(wl, T, Si_mass*p_esc_Si, 'Si',0.1, distance = distance)
+            C_dust =  dust_flux(wl, T,  C_mass*p_esc_C , 'C',0.1, distance  = distance)
+            dust_models += [Si_dust + C_dust]
+    else:
+        print("Length of Ts, Ms, and f_Si must be equal")
+    dust_models = np.array(dust_models)
+    total_dust_SED = np.sum(dust_models, axis = 0)
+    return 1e26*total_dust_SED 
+
+
+
+
+
 
     
