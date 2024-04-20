@@ -186,18 +186,18 @@ def flux_in_filter( wl, F_nu, filters, FWHM = False):
     
 ###Now define functions to fit. 
 
-def SED_to_fit(wl, Ts, Ms, f_Si, distance):
+def SED_to_fit(wl, Ts, Ms, f_Sis, distance):
     """Deal with multi component fit
     Ts, Ms, and f_Si are arrays of same length specify different 
     SED components.
     distance is in cm. 
     """
     dust_models = []
-    if len(Ts) == len(Ms) == len(f_Si):
+    if len(Ts) == len(Ms) == len(f_Sis):
         for ind in range(len(Ts)):
             T = Ts[ind]
             M = Ms[ind]
-            f_Si = f_Si[ind]
+            f_Si = f_Sis[ind]
             Si_mass = f_Si*M
             C_mass =  (1-f_Si)*M
             Si_dust = dust_flux(wl, T, Si_mass, 'Si',0.1, distance = distance)
