@@ -248,14 +248,14 @@ def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance):
             Si_mass = f_Si*M
             C_mass =  (1-f_Si)*M
             #Compute the optical depth
-            print(Si_mass, C_mass)
+            # print(Si_mass, C_mass)
             tau_Si = tau(wl*u.micron, epoch*u.day, Si_mass*u.Msun, v_ej*u.km/u.s, comp = 'Si')
             tau_C =  tau(wl*u.micron, epoch*u.day, C_mass*u.Msun , v_ej*u.km/u.s, comp = 'C')
             # print(tau_Si, tau_C)
             #Compute the escape fraction
             p_esc_Si = p_esc(tau_Si)
             p_esc_C  = p_esc(tau_C)
-            print(p_esc_Si, p_esc_C)
+            # print(p_esc_Si, p_esc_C)
             #Now compute the observed flux
             Si_dust = dust_flux(wl, T, Si_mass*p_esc_Si, 'Si',0.1, distance = distance)
             C_dust =  dust_flux(wl, T,  C_mass*p_esc_C , 'C',0.1, distance  = distance)
