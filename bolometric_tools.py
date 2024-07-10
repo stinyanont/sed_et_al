@@ -10,7 +10,7 @@ import astropy.units as u
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit 
-from scipy.integrate import simps
+from scipy.integrate import simpson
 
 import extinction
 import george
