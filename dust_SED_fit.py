@@ -215,10 +215,14 @@ def SED_to_fit(wl, Ts, Ms, f_Sis, distance):
 
 def p_esc(tau):
     "eq 3 in the paper"
-    p = 3/(4*tau) * (1-1/(2*tau**2)+ (1/tau + 1/(2*tau**2))*np.exp(-2*tau) )
+    p = 3/(4*tau) * (1 - 1/(2*tau**2) + (1/tau + 1/(2*tau**2))*np.exp(-2*tau) )
     for i in range(len(p)):
         if np.isnan(p[i]): 
             p[i] = 0
+    #Weird numerical factor
+    for i in range(len(p)):
+        if tau[i] < 1e-4:
+            p[i] = 1
     return p
 
 def tau(wl, t, Mdust_tot, v_ej, comp = 'C'):
@@ -255,7 +259,7 @@ def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance):
             #Compute the escape fraction
             p_esc_Si = p_esc(tau_Si)
             p_esc_C  = p_esc(tau_C)
-            # print(p_esc_Si, p_esc_C)
+            # print(tau_Si, p_esc_Si, tau_C, p_esc_C)
             #Now compute the observed flux
             Si_dust = dust_flux(wl, T, Si_mass*p_esc_Si, 'Si',0.1, distance = distance)
             C_dust =  dust_flux(wl, T,  C_mass*p_esc_C , 'C',0.1, distance  = distance)
