@@ -213,16 +213,23 @@ def SED_to_fit(wl, Ts, Ms, f_Sis, distance):
 
 ###############FIT Taking optical depth into account. Based on Shahbandeh+2023, but using emcee#
 
+# def p_esc(tau): #SO SLOW
+#     "eq 3 in the paper"
+#     p = 3/(4*tau) * (1 - 1/(2*tau**2) + (1/tau + 1/(2*tau**2))*np.exp(-2*tau) )
+#     for i in range(len(p)):
+#         if np.isnan(p[i]): 
+#             p[i] = 0
+#     #Weird numerical factor
+#     for i in range(len(p)):
+#         if tau[i] < 1e-4:
+#             p[i] = 1
+#     return p
+
 def p_esc(tau):
     "eq 3 in the paper"
     p = 3/(4*tau) * (1 - 1/(2*tau**2) + (1/tau + 1/(2*tau**2))*np.exp(-2*tau) )
-    for i in range(len(p)):
-        if np.isnan(p[i]): 
-            p[i] = 0
-    #Weird numerical factor
-    for i in range(len(p)):
-        if tau[i] < 1e-4:
-            p[i] = 1
+    p = np.nan_to_num(p, nan = 0)
+    p[tau < 1e-4] = 1
     return p
 
 def tau(wl, t, Mdust_tot, v_ej, comp = 'C'):
