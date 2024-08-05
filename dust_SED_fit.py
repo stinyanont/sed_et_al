@@ -230,6 +230,7 @@ def p_esc(tau):
     p = 3/(4*tau) * (1 - 1/(2*tau**2) + (1/tau + 1/(2*tau**2))*np.exp(-2*tau) )
     p = np.nan_to_num(p, nan = 0)
     p[tau < 1e-4] = 1
+    p[tau > 1000] = 0
     return p
 
 def tau(wl, t, Mdust_tot, v_ej, comp = 'C'):
@@ -242,7 +243,9 @@ def tau(wl, t, Mdust_tot, v_ej, comp = 'C'):
     opt_depth = 3/4 * (Mdust_tot/(np.pi * v_ej**2)) * draine_kappa(wl, comp)*(u.cm**2/u.g) * t**(-2)
     return opt_depth.to(1).value
 
-def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance):
+from matplotlib import pyplot as plt
+
+def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance, return_components = False):
     """Deal with multi component fit
     Ts, Ms, and f_Si are arrays of same length specify different 
     SED components.
@@ -251,6 +254,8 @@ def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance):
     M in solar mass
     """
     dust_models = []
+    #FIRST LOOP TO GET TOTAL OPTICAL DEPTH FROM ALL COMPONENTS
+    tau_tots = []
     if len(Ts) == len(Ms) == len(f_Sis):
         for ind in range(len(Ts)):
             T = Ts[ind]
@@ -258,24 +263,41 @@ def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance):
             f_Si = f_Sis[ind]
             Si_mass = f_Si*M
             C_mass =  (1-f_Si)*M
+            # print(C_mass, Si_mass)
             #Compute the optical depth
             # print(Si_mass, C_mass)
             tau_Si = tau(wl*u.micron, epoch*u.day, Si_mass*u.Msun, v_ej*u.km/u.s, comp = 'Si')
             tau_C =  tau(wl*u.micron, epoch*u.day, C_mass*u.Msun , v_ej*u.km/u.s, comp = 'C')
             # print(tau_Si, tau_C)
-            #Compute the escape fraction
-            p_esc_Si = p_esc(tau_Si)
-            p_esc_C  = p_esc(tau_C)
-            # print(tau_Si, p_esc_Si, tau_C, p_esc_C)
+            #TOTAL optical depth MAJOR UPDATE HERE.
+            tau_comp = tau_Si + tau_C
+            tau_tots += [tau_comp]
+        tau_total = np.sum(tau_tots, axis = 0)
+        p_esc_total = p_esc(tau_total)
+        # plt.plot(wl, tau_tots)
+        # plt.plot(wl, p_esc_total);plt.ylim([0,1]);plt.show()
+        # print(p_esc_total)
+        for ind in range(len(Ts)):
+            T = Ts[ind]
+            M = Ms[ind]
+            f_Si = f_Sis[ind]
+            Si_mass = f_Si*M
+            C_mass =  (1-f_Si)*M
             #Now compute the observed flux
-            Si_dust = dust_flux(wl, T, Si_mass*p_esc_Si, 'Si',0.1, distance = distance)
-            C_dust =  dust_flux(wl, T,  C_mass*p_esc_C , 'C',0.1, distance  = distance)
+            Si_dust = dust_flux(wl, T, Si_mass*p_esc_total, 'Si',0.1, distance = distance)
+            C_dust =  dust_flux(wl, T,  C_mass*p_esc_total, 'C',0.1, distance  = distance)
             dust_models += [Si_dust + C_dust]
     else:
         print("Length of Ts, Ms, and f_Si must be equal")
+
     dust_models = np.array(dust_models)
-    total_dust_SED = np.sum(dust_models, axis = 0)
-    return 1e26*total_dust_SED 
+    # print(dust_models.shape)
+
+    if return_components:
+        return 1e26*dust_models
+    else:
+        total_dust_SED = np.sum(dust_models, axis = 0)
+        return 1e26*total_dust_SED 
 
 
 
