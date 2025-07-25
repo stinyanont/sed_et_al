@@ -272,6 +272,8 @@ def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance, return_compon
     distance is in cm. 
     T in K
     M in solar mass
+    epoch in day
+    v_ej in km/s
     """
     dust_models = []
     #FIRST LOOP TO GET TOTAL OPTICAL DEPTH FROM ALL COMPONENTS
