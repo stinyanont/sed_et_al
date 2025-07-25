@@ -90,6 +90,25 @@ def kappa(wl,comp, a):
     a_cgs = a*1e-4
     return (3/(4*np.pi*rho*a_cgs**3))*(np.pi*a_cgs**2*Q(wl))
 
+def draine_Q(wl, comp):
+    """get Q from Draine. Only support a = 0.1 micron
+    Inputs:
+        wl: wavelength in micron
+        comp: either 'C' (for amorphous carbon) or 'Si' for astro Silicate. 
+    Output:
+        dust kappa in cgs
+    """
+    if comp == 'C':
+        dQ = d_q_c
+        rho = 2.2
+    elif comp == 'Si':
+        dQ = d_q_si
+        rho = 3
+    int_dQ = interp1d(dQ['w(micron)'], dQ['Q_abs'], bounds_error = False)
+#     rho = 2.5
+    a_cgs = 0.1e-4
+    return int_dQ(wl)
+
 def draine_kappa(wl, comp):
     """get kappa from Draine dust Q. Only support a = 0.1 micron
     Inputs:
@@ -108,6 +127,7 @@ def draine_kappa(wl, comp):
 #     rho = 2.5
     a_cgs = 0.1e-4
     return (3/(4*np.pi*rho*a_cgs**3))*(np.pi*a_cgs**2*int_dQ(wl))
+
     
 
 def dust_flux(wl, T, mass, comp, a,distance, source = 'Draine'):
@@ -163,7 +183,7 @@ def flux_in_filter( wl, F_nu, filters, FWHM = False):
     
     #now, get integrated flux in each band
     fluxes = []
-    from scipy.integrate import simps
+    from scipy.integrate import trapezoid
     for i in filters:
         #if FWHM is given, compute wl min and max
         if FWHM:
@@ -172,7 +192,7 @@ def flux_in_filter( wl, F_nu, filters, FWHM = False):
             band = i
         #print(band)
         good = np.logical_and(wl > band[0], wl < band[1]) #where band[0] is cuton, band[1] cutoff
-        flux = simps(F_lam[good], wl[good])
+        flux = trapezoid(F_lam[good], x=wl[good])
         fluxes += [flux/(band[1]-band[0])]
         
     F_lam_in = np.array(fluxes) 
@@ -230,7 +250,7 @@ def p_esc(tau):
     p = 3/(4*tau) * (1 - 1/(2*tau**2) + (1/tau + 1/(2*tau**2))*np.exp(-2*tau) )
     p = np.nan_to_num(p, nan = 0)
     p[tau < 1e-4] = 1
-    p[tau > 1000] = 0
+    # p[tau > 10000] = 0
     return p
 
 def tau(wl, t, Mdust_tot, v_ej, comp = 'C'):
@@ -245,7 +265,7 @@ def tau(wl, t, Mdust_tot, v_ej, comp = 'C'):
 
 from matplotlib import pyplot as plt
 
-def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance, return_components = False):
+def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance, return_components = False, return_tau = False):
     """Deal with multi component fit
     Ts, Ms, and f_Si are arrays of same length specify different 
     SED components.
@@ -293,12 +313,19 @@ def SED_to_fit_opt_depth(wl, Ts, Ms, f_Sis, epoch, v_ej, distance, return_compon
     dust_models = np.array(dust_models)
     # print(dust_models.shape)
 
-    if return_components:
-        return 1e26*dust_models
-    else:
-        total_dust_SED = np.sum(dust_models, axis = 0)
-        return 1e26*total_dust_SED 
+    if return_tau:
+        if return_components:
+            return 1e26*dust_models, tau_total
+        else:
+            total_dust_SED = np.sum(dust_models, axis = 0)
+            return 1e26*total_dust_SED, tau_total
 
+    else:
+        if return_components:
+            return 1e26*dust_models
+        else:
+            total_dust_SED = np.sum(dust_models, axis = 0)
+            return 1e26*total_dust_SED 
 
 
 
